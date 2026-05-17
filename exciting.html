@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Practice / Creative</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;1,9..40,400&family=DotGothic16&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c0c0c;
+      --card-bg: #161616;
+      --muted: #7a7a7a;
+      --accent: #d4d0c8;
+      --border: #3a3a3a;
+      --fade: 300ms;
+      --font-ui: "DotGothic16", "MS Gothic", "Osaka", monospace;
+      --font-sans: "DM Sans", system-ui, sans-serif;
+      --font-serif: "Newsreader", Georgia, serif;
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --card-width: min(32rem, calc(100vw - 2.5rem));
+      --card-height: min(28rem, calc(100dvh - 10.5rem));
+      --card-text-size: clamp(0.9375rem, 2.6vw, 1.375rem);
+      --card-radius: 1rem;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--font-ui);
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--accent);
+      -webkit-font-smoothing: none;
+      font-smooth: never;
+    }
+
+    .shell {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      height: 100dvh;
+    }
+
+    .topbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      padding: 0.875rem 1.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg);
+    }
+
+    .logo {
+      font-family: var(--font-ui);
+      font-size: 15px;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+      text-decoration: none;
+      text-transform: none;
+    }
+
+    .logo:hover {
+      color: #fff;
+    }
+
+    .stage {
+      flex: 1;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      padding: 1.25rem;
+      min-height: 0;
+    }
+
+    .center-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: min(32rem, 100%);
+      margin: 0 auto;
+      min-height: 0;
+    }
+
+    .card-slot {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .actions {
+      flex-shrink: 0;
+      width: 100%;
+      padding-top: 1.25rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .loading {
+      font-family: var(--font-ui);
+      font-size: 14px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    .block-wrap {
+      width: var(--card-width);
+      height: var(--card-height);
+      max-width: 100%;
+      flex-shrink: 0;
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity var(--fade) ease, transform var(--fade) ease;
+    }
+
+    .block-wrap.is-leaving {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    .block-wrap.is-entering {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    .inspiration-card {
+      width: 100%;
+      height: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--card-radius);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .card-body {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 1.25rem;
+      min-height: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .card-meta {
+      flex-shrink: 0;
+      padding: 0.65rem 1rem 0.75rem;
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      line-height: 1.5;
+      color: var(--muted);
+      border-top: 1px solid var(--border-subtle);
+      text-align: center;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .card-meta a {
+      color: var(--muted);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .card-meta a:hover {
+      color: var(--accent);
+    }
+
+    .card-body .image-expand {
+      display: block;
+      margin: auto;
+      padding: 0;
+      border: none;
+      background: none;
+      cursor: zoom-in;
+      flex-shrink: 1;
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .card-body .image-expand img {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    .image-lightbox {
+      border: none;
+      padding: 0;
+      margin: auto;
+      max-width: 95vw;
+      max-height: 95dvh;
+      background: transparent;
+      color: var(--accent);
+      overflow: visible;
+    }
+
+    .image-lightbox::backdrop {
+      background: rgba(0, 0, 0, 0.85);
+    }
+
+    .image-lightbox__close {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 1;
+      width: 2.25rem;
+      height: 2.25rem;
+      padding: 0;
+      font-family: var(--font-sans);
+      font-size: 1.25rem;
+      line-height: 1;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+      background: var(--card-bg);
+      color: var(--accent);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .image-lightbox__close:hover {
+      background: #222;
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .image-lightbox__img {
+      display: block;
+      max-width: 95vw;
+      max-height: 95dvh;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      cursor: zoom-out;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+
+    .image-lightbox__img.is-ready {
+      opacity: 1;
+    }
+
+    .block-text {
+      font-family: var(--font-serif);
+      font-size: var(--card-text-size);
+      line-height: 1.5;
+      letter-spacing: 0;
+      text-align: center;
+      padding: 0 0.25rem;
+      width: 100%;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .block-text p + p {
+      margin-top: 1rem;
+    }
+
+    .block-link {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 0;
+      flex: 1 1 auto;
+      text-align: center;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .block-link img {
+      display: block;
+      max-width: 100%;
+      max-height: 65%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      border-radius: 0;
+      margin-bottom: 1rem;
+      flex-shrink: 1;
+    }
+
+    .block-link .link-title {
+      font-family: var(--font-serif);
+      font-size: var(--card-text-size);
+      line-height: 1.5;
+      margin-bottom: 0.5rem;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .block-link .link-domain {
+      font-family: var(--font-ui);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .block-media {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 0;
+      flex: 1 1 auto;
+      text-align: center;
+    }
+
+    .block-media .media-thumb {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      max-width: 100%;
+      max-height: 70%;
+      flex-shrink: 1;
+    }
+
+    .block-media .media-thumb img {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .block-media .media-badge {
+      position: absolute;
+      bottom: 0.75rem;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 0.25rem 0.5rem;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-family: var(--font-ui);
+      font-size: 11px;
+      border-radius: 0;
+    }
+
+    .block-media .media-body {
+      margin-top: 1rem;
+      font-family: var(--font-serif);
+      font-size: var(--card-text-size);
+      line-height: 1.5;
+      width: 100%;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .block-media a.media-open {
+      color: inherit;
+    }
+
+    .another {
+      font-family: var(--font-sans);
+      font-size: 0.8125rem;
+      line-height: 1;
+      padding: 0.55rem 1.35rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+      background: var(--card-bg);
+      color: var(--accent);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .another:hover:not(:disabled) {
+      background: #222;
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .another:active:not(:disabled) {
+      background: #1a1a1a;
+    }
+
+    .another:disabled {
+      opacity: 0.4;
+      cursor: wait;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="logo" href="https://www.are.na/anith-vishwanath/practice-creative" target="_blank" rel="noopener">Practice / Creative</a>
+    </header>
+
+    <main class="stage" id="stage">
+      <div class="center-col">
+        <div class="card-slot" aria-live="polite">
+          <p class="loading" id="loading">Loading…</p>
+          <div class="block-wrap" id="block-wrap" hidden></div>
+        </div>
+        <div class="actions">
+          <button type="button" class="another" id="another" disabled>Another</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <dialog class="image-lightbox" id="image-lightbox" aria-label="Full size image">
+    <button type="button" class="image-lightbox__close" id="image-lightbox-close" aria-label="Close">×</button>
+    <img class="image-lightbox__img" id="image-lightbox-img" alt="" />
+  </dialog>
+
+  <p class="sr-only">Press Space or right arrow for another block</p>
+
+  <script>
+    const CONFIG = {
+      user: "anith-vishwanath",
+      slug: "practice-creative",
+      per: 20,
+      channelUrl: "https://www.are.na/anith-vishwanath/practice-creative",
+      channelLabel: "Practice / Creative",
+    };
+
+    const API_BASE = "https://api.are.na/v2";
+
+    let channelLength = null;
+    let lastId = null;
+    let busy = false;
+    let lightboxLoadId = 0;
+
+    const loading = document.getElementById("loading");
+    const blockWrap = document.getElementById("block-wrap");
+    const anotherBtn = document.getElementById("another");
+    const imageLightbox = document.getElementById("image-lightbox");
+    const imageLightboxImg = document.getElementById("image-lightbox-img");
+    const imageLightboxClose = document.getElementById("image-lightbox-close");
+
+    function channelUrl(page) {
+      return `${API_BASE}/channels/${CONFIG.slug}?user=${CONFIG.user}&page=${page}&per=${CONFIG.per}`;
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function stripHtml(html) {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = html || "";
+      return tmp.textContent.trim();
+    }
+
+    function blockImageUrl(block) {
+      if (!block.image) return null;
+      return block.image.large?.url || block.image.display?.url || block.image.original?.url;
+    }
+
+    function blockImageFullUrl(block) {
+      if (!block.image) return null;
+      return block.image.original?.url || block.image.large?.url || block.image.display?.url;
+    }
+
+    function blockTitle(block) {
+      return block.title || block.generated_title || "Untitled";
+    }
+
+    function blockText(block) {
+      return stripHtml(block.content_html) || block.content || "";
+    }
+
+    function blockSourceUrl(block) {
+      return block.source?.url || null;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function escapeAttr(str) {
+      return escapeHtml(str).replace(/'/g, "&#39;");
+    }
+
+    function domainFromUrl(url) {
+      try {
+        return new URL(url).hostname.replace(/^www\./, "");
+      } catch {
+        return url;
+      }
+    }
+
+    function renderBlock(block) {
+      const type = block.class;
+      const imgUrl = blockImageUrl(block);
+      const text = blockText(block);
+      const source = blockSourceUrl(block);
+
+      if (type === "Image" && imgUrl) {
+        const fullUrl = blockImageFullUrl(block) || imgUrl;
+        return `<button type="button" class="image-expand" data-full-url="${escapeAttr(fullUrl)}" aria-label="View full size">
+          <img src="${escapeAttr(imgUrl)}" alt="${escapeAttr(blockTitle(block))}" />
+        </button>`;
+      }
+
+      if (type === "Text" && text) {
+        const paras = text.split(/\n\n+/).map((p) => `<p>${escapeHtml(p)}</p>`).join("");
+        return `<div class="block-text">${paras}</div>`;
+      }
+
+      if (type === "Link" && source) {
+        const preview = imgUrl ? `<img src="${escapeAttr(imgUrl)}" alt="" />` : "";
+        return `
+          <a class="block-link" href="${escapeAttr(source)}" target="_blank" rel="noopener">
+            ${preview}
+            <div class="link-title">${escapeHtml(blockTitle(block))}</div>
+            <p class="link-domain">${escapeHtml(domainFromUrl(source))}</p>
+          </a>`;
+      }
+
+      if (type === "Media") {
+        const desc = stripHtml(block.description_html);
+        const body = text || desc;
+        const openUrl = source;
+        const thumb = imgUrl
+          ? `<div class="media-thumb">
+               <img src="${escapeAttr(imgUrl)}" alt="" />
+               <span class="media-badge">▶ ${escapeHtml(block.embed?.type || "media")}</span>
+             </div>`
+          : "";
+        const open = openUrl
+          ? `<a class="media-open block-link" href="${escapeAttr(openUrl)}" target="_blank" rel="noopener">${thumb || escapeHtml(blockTitle(block))}</a>`
+          : thumb;
+        const bodyPart = body ? `<p class="media-body">${escapeHtml(body)}</p>` : "";
+        return `<div class="block-media">${open}${bodyPart}</div>`;
+      }
+
+      if (imgUrl) {
+        return `<img src="${escapeAttr(imgUrl)}" alt="" />`;
+      }
+
+      if (text) {
+        return `<div class="block-text"><p>${escapeHtml(text)}</p></div>`;
+      }
+
+      return `<p class="loading">No preview</p>`;
+    }
+
+    function renderCardMeta(block) {
+      const author = block.user?.username || block.user?.full_name || "Unknown";
+      const blockUrl = `https://www.are.na/block/${block.id}`;
+      return `
+        <span>${escapeHtml(author)} · ${escapeHtml(block.class)} · </span>
+        <a href="${escapeAttr(CONFIG.channelUrl)}" target="_blank" rel="noopener">${escapeHtml(CONFIG.channelLabel)}</a>
+        <span> · </span>
+        <a href="${escapeAttr(blockUrl)}" target="_blank" rel="noopener">Open block</a>`;
+    }
+
+    function isDisplayableBlock(block) {
+      return block.class !== "Channel";
+    }
+
+    function filterDisplayableBlocks(contents) {
+      return (contents || []).filter(isDisplayableBlock);
+    }
+
+    async function fetchChannelMeta() {
+      const res = await fetch(channelUrl(1));
+      if (!res.ok) throw new Error(`Are.na API returned ${res.status}`);
+      const data = await res.json();
+      channelLength = data.length;
+      return data;
+    }
+
+    async function fetchRandomBlock() {
+      if (channelLength == null) await fetchChannelMeta();
+
+      const totalPages = Math.max(1, Math.ceil(channelLength / CONFIG.per));
+      let block = null;
+      let attempts = 0;
+
+      while (!block && attempts < 12) {
+        attempts++;
+        const page = randomInt(1, totalPages);
+        const res = await fetch(channelUrl(page));
+        if (!res.ok) throw new Error(`Are.na API returned ${res.status}`);
+        const data = await res.json();
+        const eligible = filterDisplayableBlocks(data.contents);
+        if (!eligible.length) continue;
+
+        const candidate = eligible[randomInt(0, eligible.length - 1)];
+        if (candidate.id === lastId && eligible.length > 1) continue;
+        if (candidate.id === lastId && totalPages > 1) continue;
+        block = candidate;
+      }
+
+      if (!block) {
+        for (let page = 1; page <= totalPages && !block; page++) {
+          const res = await fetch(channelUrl(page));
+          if (!res.ok) continue;
+          const data = await res.json();
+          const eligible = filterDisplayableBlocks(data.contents);
+          block = eligible.find((b) => b.id !== lastId) || eligible[0] || null;
+        }
+
+      }
+
+      if (!block) throw new Error("No displayable blocks in channel");
+
+      lastId = block.id;
+      return block;
+    }
+
+    function closeImageLightbox() {
+      lightboxLoadId += 1;
+      if (imageLightbox.open) imageLightbox.close();
+      imageLightboxImg.removeAttribute("src");
+      imageLightboxImg.alt = "";
+      imageLightboxImg.classList.remove("is-ready");
+    }
+
+    function openImageLightbox(fullUrl, alt) {
+      const loadId = ++lightboxLoadId;
+      imageLightboxImg.classList.remove("is-ready");
+      imageLightboxImg.removeAttribute("src");
+      imageLightboxImg.alt = alt;
+      imageLightbox.showModal();
+
+      const loader = new Image();
+      const reveal = () => {
+        if (loadId !== lightboxLoadId) return;
+        imageLightboxImg.src = fullUrl;
+        imageLightboxImg.classList.add("is-ready");
+      };
+      loader.onload = reveal;
+      loader.onerror = reveal;
+      loader.src = fullUrl;
+    }
+
+    function showBlock(block) {
+      const inner = renderBlock(block);
+      blockWrap.innerHTML = `
+        <article class="inspiration-card">
+          <div class="card-body">${inner}</div>
+          <footer class="card-meta">${renderCardMeta(block)}</footer>
+        </article>`;
+
+      loading.hidden = true;
+      blockWrap.hidden = false;
+    }
+
+    async function revealBlock(block, { animate = true } = {}) {
+      if (animate && !blockWrap.hidden) {
+        blockWrap.classList.add("is-leaving");
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      showBlock(block);
+      blockWrap.classList.remove("is-leaving");
+      blockWrap.classList.add("is-entering");
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          blockWrap.classList.remove("is-entering");
+        });
+      });
+    }
+
+    async function nextBlock({ animate = true } = {}) {
+      if (busy) return;
+      closeImageLightbox();
+      busy = true;
+      anotherBtn.disabled = true;
+
+      try {
+        const block = await fetchRandomBlock();
+        await revealBlock(block, { animate });
+      } catch (err) {
+        console.error(err);
+        loading.hidden = false;
+        loading.textContent = "Could not load channel.";
+        blockWrap.hidden = true;
+      } finally {
+        busy = false;
+        anotherBtn.disabled = false;
+      }
+    }
+
+    anotherBtn.addEventListener("click", () => nextBlock());
+
+    blockWrap.addEventListener("click", (e) => {
+      const btn = e.target.closest(".image-expand");
+      if (!btn) return;
+      const img = btn.querySelector("img");
+      openImageLightbox(btn.dataset.fullUrl, img?.alt || "Image");
+    });
+
+    imageLightboxClose.addEventListener("click", closeImageLightbox);
+    imageLightbox.addEventListener("click", (e) => {
+      if (e.target === imageLightbox) closeImageLightbox();
+    });
+    imageLightbox.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      closeImageLightbox();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (imageLightbox.open) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeImageLightbox();
+        }
+        return;
+      }
+      if (e.key !== " " && e.key !== "ArrowRight") return;
+      if (e.target.closest("a, input, textarea, button")) return;
+      e.preventDefault();
+      nextBlock();
+    });
+
+    nextBlock({ animate: false });
+  </script>
+</body>
+</html>
