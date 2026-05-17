@@ -18,6 +18,7 @@
 
     const loading = document.getElementById("loading");
     const blockWrap = document.getElementById("block-wrap");
+    const backBtn = document.getElementById("back");
     const anotherBtn = document.getElementById("another");
     const imageLightbox = document.getElementById("image-lightbox");
     const imageLightboxImg = document.getElementById("image-lightbox-img");
@@ -207,6 +208,11 @@
       if (blockHistory.length > HISTORY_MAX) blockHistory.shift();
     }
 
+    function updateActionButtons() {
+      if (backBtn) backBtn.disabled = blockHistory.length === 0 || busy;
+      if (anotherBtn) anotherBtn.disabled = busy;
+    }
+
     function closeImageLightbox() {
       lightboxLoadId += 1;
       if (imageLightbox.open) imageLightbox.close();
@@ -267,7 +273,7 @@
       if (busy) return;
       closeImageLightbox();
       busy = true;
-      anotherBtn.disabled = true;
+      updateActionButtons();
 
       try {
         if (currentBlock) pushHistory(currentBlock);
@@ -280,7 +286,7 @@
         blockWrap.hidden = true;
       } finally {
         busy = false;
-        anotherBtn.disabled = false;
+        updateActionButtons();
       }
     }
 
@@ -288,7 +294,7 @@
       if (busy || blockHistory.length === 0) return;
       closeImageLightbox();
       busy = true;
-      anotherBtn.disabled = true;
+      updateActionButtons();
 
       try {
         const block = blockHistory.pop();
@@ -297,10 +303,11 @@
         console.error(err);
       } finally {
         busy = false;
-        anotherBtn.disabled = false;
+        updateActionButtons();
       }
     }
 
+    backBtn.addEventListener("click", () => previousBlock());
     anotherBtn.addEventListener("click", () => nextBlock());
 
     blockWrap.addEventListener("click", (e) => {
