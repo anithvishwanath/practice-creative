@@ -19,6 +19,8 @@
     const imageLightbox = document.getElementById("image-lightbox");
     const imageLightboxImg = document.getElementById("image-lightbox-img");
     const imageLightboxClose = document.getElementById("image-lightbox-close");
+    const topbarChannel = document.querySelector(".topbar-channel");
+    if (topbarChannel) topbarChannel.href = CONFIG.channelUrl;
 
     function channelUrl(page) {
       return `${API_BASE}/channels/${CONFIG.slug}?user=${CONFIG.user}&page=${page}&per=${CONFIG.per}`;
@@ -137,8 +139,6 @@
       const blockUrl = `https://www.are.na/block/${block.id}`;
       return `
         <span>${escapeHtml(author)} · ${escapeHtml(block.class)} · </span>
-        <a href="${escapeAttr(CONFIG.channelUrl)}" target="_blank" rel="noopener">${escapeHtml(CONFIG.channelLabel)}</a>
-        <span> · </span>
         <a href="${escapeAttr(blockUrl)}" target="_blank" rel="noopener">Open block</a>`;
     }
 

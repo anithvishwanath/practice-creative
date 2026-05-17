@@ -10,7 +10,7 @@
       --border-subtle: rgba(255, 255, 255, 0.06);
       --card-width: min(32rem, calc(100vw - 2.5rem));
       --card-height: min(28rem, calc(100dvh - 10.5rem));
-      --card-text-size: clamp(0.9375rem, 2.6vw, 1.375rem);
+      --card-text-size: clamp(1.0625rem, 0.85rem + 1.75vw, 1.375rem);
       --card-radius: 1rem;
     }
 
@@ -40,18 +40,47 @@
       flex-shrink: 0;
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      min-width: 0;
       padding: 0.875rem 1.25rem;
       border-bottom: 1px solid var(--border-subtle);
       background: var(--bg);
     }
 
     .logo {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       font-family: var(--font-sans);
       font-size: 15px;
       font-weight: 500;
       line-height: 1;
       letter-spacing: 0.02em;
       color: var(--accent);
+    }
+
+    .topbar-channel {
+      flex-shrink: 0;
+      margin-left: auto;
+      white-space: nowrap;
+      font-family: var(--font-sans);
+      font-size: 0.8125rem;
+      line-height: 1;
+      color: var(--muted);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .topbar-channel:hover {
+      color: var(--accent);
+    }
+
+    .topbar-channel__short {
+      display: none;
     }
 
     .stage {
@@ -395,4 +424,56 @@
       clip: rect(0, 0, 0, 0);
       border: 0;
     }
-  
+
+    @media (max-width: 640px) {
+      :root {
+        --card-text-size: clamp(1.125rem, 1rem + 2.25vw, 1.375rem);
+      }
+
+      .topbar {
+        padding: 0.75rem 1rem;
+        gap: 0.5rem;
+      }
+
+      body {
+        font-size: 15px;
+      }
+
+      .logo {
+        font-size: 16px;
+      }
+
+      .topbar-channel {
+        font-size: 0.75rem;
+      }
+
+      .topbar-channel__full {
+        display: none;
+      }
+
+      .topbar-channel__short {
+        display: inline;
+      }
+
+      .loading {
+        font-size: 15px;
+      }
+
+      .card-meta {
+        font-size: 0.8125rem;
+      }
+
+      .block-link .link-domain {
+        font-size: 0.8125rem;
+      }
+
+      .block-media .media-badge {
+        font-size: 0.75rem;
+      }
+
+      .another {
+        font-size: 0.875rem;
+        padding: 0.625rem 1.5rem;
+      }
+    }
+
