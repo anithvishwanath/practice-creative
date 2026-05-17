@@ -5,7 +5,6 @@
       --accent: #d4d0c8;
       --border: #3a3a3a;
       --fade: 300ms;
-      --font-ui: "DotGothic16", "MS Gothic", "Osaka", monospace;
       --font-sans: "DM Sans", system-ui, sans-serif;
       --font-serif: "Newsreader", Georgia, serif;
       --border-subtle: rgba(255, 255, 255, 0.06);
@@ -23,12 +22,11 @@
     }
 
     body {
-      font-family: var(--font-ui);
+      font-family: var(--font-sans);
       font-size: 14px;
       background: var(--bg);
       color: var(--accent);
-      -webkit-font-smoothing: none;
-      font-smooth: never;
+      -webkit-font-smoothing: antialiased;
     }
 
     .shell {
@@ -48,17 +46,12 @@
     }
 
     .logo {
-      font-family: var(--font-ui);
+      font-family: var(--font-sans);
       font-size: 15px;
+      font-weight: 500;
       line-height: 1;
       letter-spacing: 0.02em;
       color: var(--accent);
-      text-decoration: none;
-      text-transform: none;
-    }
-
-    .logo:hover {
-      color: #fff;
     }
 
     .stage {
@@ -100,7 +93,7 @@
     }
 
     .loading {
-      font-family: var(--font-ui);
+      font-family: var(--font-sans);
       font-size: 14px;
       color: var(--muted);
       letter-spacing: 0.04em;
@@ -301,7 +294,7 @@
     }
 
     .block-link .link-domain {
-      font-family: var(--font-ui);
+      font-family: var(--font-sans);
       font-size: 12px;
       color: var(--muted);
     }
@@ -345,7 +338,7 @@
       background: rgba(0, 0, 0, 0.85);
       border: 1px solid var(--border);
       color: var(--accent);
-      font-family: var(--font-ui);
+      font-family: var(--font-sans);
       font-size: 11px;
       border-radius: 0;
     }
