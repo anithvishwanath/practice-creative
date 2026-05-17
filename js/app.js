@@ -12,6 +12,9 @@
     let lastId = null;
     let busy = false;
     let lightboxLoadId = 0;
+    let currentBlock = null;
+    const blockHistory = [];
+    const HISTORY_MAX = 5;
 
     const loading = document.getElementById("loading");
     const blockWrap = document.getElementById("block-wrap");
@@ -193,8 +196,15 @@
 
       if (!block) throw new Error("No displayable blocks in channel");
 
-      lastId = block.id;
       return block;
+    }
+
+    function pushHistory(block) {
+      if (!block) return;
+      const top = blockHistory[blockHistory.length - 1];
+      if (top && top.id === block.id) return;
+      blockHistory.push(block);
+      if (blockHistory.length > HISTORY_MAX) blockHistory.shift();
     }
 
     function closeImageLightbox() {
@@ -235,13 +245,15 @@
       blockWrap.hidden = false;
     }
 
-    async function revealBlock(block, { animate = true } = {}) {
+    async function revealBlock(block, { animate = true, fromHistory = false } = {}) {
       if (animate && !blockWrap.hidden) {
         blockWrap.classList.add("is-leaving");
         await new Promise((r) => setTimeout(r, 300));
       }
 
       showBlock(block);
+      currentBlock = block;
+      lastId = block.id;
       blockWrap.classList.remove("is-leaving");
       blockWrap.classList.add("is-entering");
       requestAnimationFrame(() => {
@@ -258,6 +270,7 @@
       anotherBtn.disabled = true;
 
       try {
+        if (currentBlock) pushHistory(currentBlock);
         const block = await fetchRandomBlock();
         await revealBlock(block, { animate });
       } catch (err) {
@@ -265,6 +278,23 @@
         loading.hidden = false;
         loading.textContent = "Could not load channel.";
         blockWrap.hidden = true;
+      } finally {
+        busy = false;
+        anotherBtn.disabled = false;
+      }
+    }
+
+    async function previousBlock() {
+      if (busy || blockHistory.length === 0) return;
+      closeImageLightbox();
+      busy = true;
+      anotherBtn.disabled = true;
+
+      try {
+        const block = blockHistory.pop();
+        await revealBlock(block, { animate: true, fromHistory: true });
+      } catch (err) {
+        console.error(err);
       } finally {
         busy = false;
         anotherBtn.disabled = false;
@@ -295,6 +325,12 @@
           e.preventDefault();
           closeImageLightbox();
         }
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        if (e.target.closest("a, input, textarea, button")) return;
+        e.preventDefault();
+        previousBlock();
         return;
       }
       if (e.key !== " " && e.key !== "ArrowRight") return;
