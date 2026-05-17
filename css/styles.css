@@ -119,8 +119,6 @@
       padding-top: 1.25rem;
       display: flex;
       justify-content: center;
-      align-items: center;
-      gap: 0.625rem;
     }
 
     .loading {
@@ -387,7 +385,6 @@
       color: inherit;
     }
 
-    .back,
     .another {
       font-family: var(--font-sans);
       font-size: 0.8125rem;
@@ -402,21 +399,14 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    .back:hover:not(:disabled),
     .another:hover:not(:disabled) {
       background: #222;
       color: #fff;
       border-color: rgba(255, 255, 255, 0.25);
     }
 
-    .back:active:not(:disabled),
     .another:active:not(:disabled) {
       background: #1a1a1a;
-    }
-
-    .back:disabled {
-      opacity: 0.4;
-      cursor: default;
     }
 
     .another:disabled {
@@ -481,7 +471,6 @@
         font-size: 0.75rem;
       }
 
-      .back,
       .another {
         font-size: 0.875rem;
         padding: 0.625rem 1.5rem;
