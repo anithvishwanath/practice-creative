@@ -601,7 +601,19 @@
         }
       }
 
+      // The credit sits under the block, so it waits for the image; otherwise it would
+      // show up under the date and then jump down when the image arrives.
+      const imageReady = new Promise((resolve) => {
+        const img = blockSlot.querySelector("img");
+        if (!img || (img.complete && img.naturalWidth)) return resolve();
+        img.addEventListener("load", resolve, { once: true });
+        img.addEventListener("error", resolve, { once: true });
+        setTimeout(resolve, 8000);
+      });
+
       if (!doAnimate) {
+        await imageReady;
+        if (token !== renderToken) return;
         creditEl.hidden = false;
         return;
       }
@@ -609,11 +621,11 @@
       // Date first, then the block, then the credit once the block has finished.
       await wait(Math.max(0, 400 - (performance.now() - started)));
       if (token !== renderToken) return;
-      creditEl.hidden = false;
       fadeIn(blockSlot, 0.7);
       hasPlayedArrival = true;
-      await wait(700);
+      await Promise.all([wait(700), imageReady]);
       if (token !== renderToken) return;
+      creditEl.hidden = false;
       fadeIn(creditEl, 0.4);
     }
 
