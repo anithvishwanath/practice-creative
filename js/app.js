@@ -480,7 +480,7 @@
           if (img.complete && img.naturalWidth) return Promise.resolve();
           return img.decode ? img.decode().catch(() => {}) : new Promise((r) => { img.onload = img.onerror = r; });
         })),
-        wait(8000),
+        wait(4000),
       ]);
     }
 
@@ -524,7 +524,7 @@
         pageTitle.classList.add("fade");
         blockSlot.classList.add("fade");
         creditEl.classList.add("fade");
-        fadeIn(pageTitle, 0.8);
+        fadeIn(pageTitle, 0.6);
       }
       const started = performance.now();
 
@@ -551,12 +551,12 @@
         return;
       }
 
-      // Block starts at 2.0s, or once its image has loaded if that is later.
-      await Promise.all([waitForImages(blockSlot), wait(Math.max(0, 2000 - (performance.now() - started)))]);
+      // Block starts at 0.6s, or once its image has loaded if that is later.
+      await Promise.all([waitForImages(blockSlot), wait(Math.max(0, 600 - (performance.now() - started)))]);
       if (token !== renderToken) return;
-      fadeIn(blockSlot, 1.5);
+      fadeIn(blockSlot, 0.9);
       creditEl.hidden = false;
-      await wait(1500);
+      await wait(900);
       if (token !== renderToken) return;
       fadeIn(creditEl, 0.4);
       hasPlayedArrival = true;
