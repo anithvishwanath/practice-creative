@@ -33,7 +33,12 @@
     const imageLightboxClose = document.getElementById("image-lightbox-close");
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const dateFormat = new Intl.DateTimeFormat(undefined, { weekday: "long", day: "numeric", month: "long" });
+    const weekdayFormat = new Intl.DateTimeFormat(undefined, { weekday: "long" });
+    const dayMonthFormat = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "long" });
+    const dateFormat = {
+      // Always "Saturday, 3 October" / "Saturday, October 3": comma after the weekday in every locale.
+      format: (d) => `${weekdayFormat.format(d)}, ${dayMonthFormat.format(d)}`,
+    };
 
     /* ---------- helpers ---------- */
 
@@ -469,18 +474,6 @@
       noteEl.hidden = false;
     }
 
-    async function waitForImages(root) {
-      const imgs = [...root.querySelectorAll("img")];
-      if (!imgs.length) return;
-      await Promise.race([
-        Promise.all(imgs.map((img) => {
-          if (img.complete && img.naturalWidth) return Promise.resolve();
-          return img.decode ? img.decode().catch(() => {}) : new Promise((r) => { img.onload = img.onerror = r; });
-        })),
-        wait(2000),
-      ]);
-    }
-
     async function render({ animate = false } = {}) {
       const token = ++renderToken;
       const route = parseRoute();
@@ -548,14 +541,12 @@
         return;
       }
 
-      // Block starts at 0.3s, or once its image has loaded if that is later.
-      await Promise.all([waitForImages(blockSlot), wait(Math.max(0, 300 - (performance.now() - started)))]);
+      // Date first, then the block and its credit together.
+      await wait(Math.max(0, 400 - (performance.now() - started)));
       if (token !== renderToken) return;
-      fadeIn(blockSlot, 0.7);
       creditEl.hidden = false;
-      await wait(700);
-      if (token !== renderToken) return;
-      fadeIn(creditEl, 0.3);
+      fadeIn(blockSlot, 0.7);
+      fadeIn(creditEl, 0.7);
       hasPlayedArrival = true;
     }
 
