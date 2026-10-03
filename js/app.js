@@ -249,24 +249,21 @@
       if (blocks) return blocks;
       let cached = null;
       try { cached = JSON.parse(lsGet(CACHE_KEY)); } catch { /* ignore */ }
-      const fresh = cached && Array.isArray(cached.blocks) && cached.blocks.length &&
-        Date.now() - cached.fetchedAt < CACHE_MAX_AGE;
-      if (fresh) {
-        blocks = cached.blocks;
-        return blocks;
-      }
-      try {
+      const hasCache = cached && Array.isArray(cached.blocks) && cached.blocks.length;
+      const stale = !hasCache || Date.now() - cached.fetchedAt >= CACHE_MAX_AGE;
+      const refresh = async () => {
         const list = await fetchChannelBlocks();
         if (!list.length) throw new Error("No displayable blocks in channel");
-        blocks = list;
-        lsSet(CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), blocks }));
-      } catch (err) {
-        if (cached && Array.isArray(cached.blocks) && cached.blocks.length) {
-          blocks = cached.blocks;
-        } else {
-          throw err;
-        }
+        lsSet(CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), blocks: list }));
+        return list;
+      };
+      if (hasCache) {
+        // Show the cached channel immediately; refresh in the background when stale.
+        blocks = cached.blocks;
+        if (stale) refresh().catch((err) => console.error(err));
+        return blocks;
       }
+      blocks = await refresh();
       return blocks;
     }
 
@@ -524,7 +521,7 @@
         pageTitle.classList.add("fade");
         blockSlot.classList.add("fade");
         creditEl.classList.add("fade");
-        fadeIn(pageTitle, 0.6);
+        fadeIn(pageTitle, 0.4);
       }
       const started = performance.now();
 
@@ -551,14 +548,14 @@
         return;
       }
 
-      // Block starts at 0.6s, or once its image has loaded if that is later.
-      await Promise.all([waitForImages(blockSlot), wait(Math.max(0, 600 - (performance.now() - started)))]);
+      // Block starts at 0.3s, or once its image has loaded if that is later.
+      await Promise.all([waitForImages(blockSlot), wait(Math.max(0, 300 - (performance.now() - started)))]);
       if (token !== renderToken) return;
-      fadeIn(blockSlot, 0.9);
+      fadeIn(blockSlot, 0.7);
       creditEl.hidden = false;
-      await wait(900);
+      await wait(700);
       if (token !== renderToken) return;
-      fadeIn(creditEl, 0.4);
+      fadeIn(creditEl, 0.3);
       hasPlayedArrival = true;
     }
 
