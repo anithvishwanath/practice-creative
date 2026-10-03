@@ -210,14 +210,35 @@
     }
 
     async function fetchChannelBlocks() {
-      const all = [];
-      for (let page = 1; page < 100; page++) {
-        const res = await fetch(`${API_BASE}/channels/${CONFIG.slug}/contents?per=${CONFIG.per}&page=${page}&sort=position&direction=asc`);
+      const pageUrl = (page) =>
+        `${API_BASE}/channels/${CONFIG.slug}/contents?per=${CONFIG.per}&page=${page}&sort=position&direction=asc`;
+      const fetchPage = async (page) => {
+        const res = await fetch(pageUrl(page));
         if (!res.ok) throw new Error(`Are.na API returned ${res.status}`);
-        const data = await res.json();
-        const contents = data.contents || [];
-        all.push(...contents);
-        if (contents.length < CONFIG.per) break;
+        return (await res.json()).contents || [];
+      };
+
+      // Page 1 and the channel length in parallel, then every other page at once.
+      const [first, length] = await Promise.all([
+        fetchPage(1),
+        fetch(`${API_BASE}/channels/${CONFIG.slug}?user=${CONFIG.user}&per=1`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => d?.length ?? null)
+          .catch(() => null),
+      ]);
+      const all = [...first];
+      if (first.length >= CONFIG.per) {
+        if (length) {
+          const pages = [];
+          for (let p = 2; p <= Math.ceil(length / CONFIG.per); p++) pages.push(fetchPage(p));
+          (await Promise.all(pages)).forEach((c) => all.push(...c));
+        } else {
+          for (let p = 2; p < 100; p++) {
+            const c = await fetchPage(p);
+            all.push(...c);
+            if (c.length < CONFIG.per) break;
+          }
+        }
       }
       // Oldest first: position 1 is the earliest block added.
       all.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
@@ -591,6 +612,23 @@
 
     window.addEventListener("hashchange", () => render({ animate: false }));
 
+    // Warm visit: start downloading today's image before the render pipeline runs.
+    function preloadTodayImage() {
+      if (parseRoute().name !== "today") return;
+      try {
+        const cached = JSON.parse(lsGet(CACHE_KEY));
+        const pinned = lsGet(PIN_PREFIX + todayKey());
+        const list = cached?.blocks;
+        if (!Array.isArray(list) || !list.length) return;
+        const block = pinned
+          ? list.find((b) => String(b.id) === pinned)
+          : list[dayIndex(todayKey()) % list.length];
+        const url = block && blockImageUrl(block);
+        if (url) new Image().src = url;
+      } catch { /* ignore */ }
+    }
+
+    preloadTodayImage();
     pruneOldPins();
     scheduleMidnight();
     render({ animate: !hasPlayedArrival });
