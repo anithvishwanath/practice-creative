@@ -50,7 +50,7 @@
 
     function blockImageUrl(block) {
       if (!block.image) return null;
-      return block.image.large?.url || block.image.display?.url || block.image.original?.url;
+      return block.image.display?.url || block.image.large?.url || block.image.original?.url;
     }
 
     function blockImageFullUrl(block) {
@@ -146,9 +146,20 @@
       return dateKey(new Date());
     }
 
+    // The pick indexes the full position-ordered channel (Channel blocks included as
+    // stubs) and steps past any Channel block, so one block can be fetched on its own.
+    function pickFrom(list, key) {
+      if (!list || !list.length) return null;
+      const start = dayIndex(key) % list.length;
+      for (let i = 0; i < list.length; i++) {
+        const b = list[(start + i) % list.length];
+        if (isDisplayableBlock(b)) return b;
+      }
+      return null;
+    }
+
     function blockFor(key) {
-      if (!blocks || !blocks.length) return null;
-      return blocks[dayIndex(key) % blocks.length];
+      return pickFrom(blocks, key);
     }
 
     /* ---------- storage ---------- */
@@ -194,6 +205,7 @@
     }
 
     function slimBlock(b) {
+      if (b.class === "Channel") return { id: b.id, class: "Channel", position: b.position };
       const img = (i) => (i ? { url: i.url } : undefined);
       return {
         id: b.id,
@@ -247,19 +259,26 @@
       }
       // Oldest first: position 1 is the earliest block added.
       all.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
-      return filterDisplayableBlocks(all).map(slimBlock);
+      return all.map(slimBlock);
     }
 
-    async function loadBlocks() {
-      if (blocks) return blocks;
+    let loadPromise = null;
+
+    function loadBlocks() {
+      if (blocks) return Promise.resolve(blocks);
+      if (!loadPromise) loadPromise = loadBlocksOnce().finally(() => { loadPromise = null; });
+      return loadPromise;
+    }
+
+    async function loadBlocksOnce() {
       let cached = null;
       try { cached = JSON.parse(lsGet(CACHE_KEY)); } catch { /* ignore */ }
-      const hasCache = cached && Array.isArray(cached.blocks) && cached.blocks.length;
+      const hasCache = cached && cached.v === 2 && Array.isArray(cached.blocks) && cached.blocks.length;
       const stale = !hasCache || Date.now() - cached.fetchedAt >= CACHE_MAX_AGE;
       const refresh = async () => {
         const list = await fetchChannelBlocks();
-        if (!list.length) throw new Error("No displayable blocks in channel");
-        lsSet(CACHE_KEY, JSON.stringify({ fetchedAt: Date.now(), blocks: list }));
+        if (!list.some(isDisplayableBlock)) throw new Error("No displayable blocks in channel");
+        lsSet(CACHE_KEY, JSON.stringify({ v: 2, fetchedAt: Date.now(), blocks: list }));
         return list;
       };
       if (hasCache) {
@@ -474,6 +493,31 @@
       noteEl.hidden = false;
     }
 
+    // First visit (no cached channel): fetch just today's block (two tiny requests)
+    // instead of the whole channel. Uses the same pick rule as the full list.
+    async function fetchTodayBlockFast(key) {
+      try {
+        const meta = await fetch(`${API_BASE}/channels/${CONFIG.slug}?user=${CONFIG.user}&per=1`).then((r) => r.json());
+        const length = meta?.length;
+        if (!length) return null;
+        const start = dayIndex(key) % length;
+        for (let i = 0; i < 5; i++) {
+          const page = ((start + i) % length) + 1;
+          const res = await fetch(`${API_BASE}/channels/${CONFIG.slug}/contents?per=1&page=${page}&sort=position&direction=asc`);
+          if (!res.ok) return null;
+          const item = (await res.json()).contents?.[0];
+          if (item && isDisplayableBlock(item)) return slimBlock(item);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+      return null;
+    }
+
+    function hasCachedChannel() {
+      try { return JSON.parse(lsGet(CACHE_KEY))?.v === 2; } catch { return false; }
+    }
+
     async function render({ animate = false } = {}) {
       const token = ++renderToken;
       const route = parseRoute();
@@ -520,8 +564,16 @@
 
       let block = null;
       try {
-        await loadBlocks();
-        block = resolveBlock(key);
+        if (isToday && !hasCachedChannel() && !blocks) {
+          const pinnedId = lsGet(PIN_PREFIX + key);
+          block = await fetchTodayBlockFast(key);
+          if (block && pinnedId && String(block.id) !== pinnedId) block = null; // keep a pinned pick stable
+          if (block) lsSet(PIN_PREFIX + key, String(block.id));
+        }
+        if (!block) {
+          await loadBlocks();
+          block = resolveBlock(key);
+        }
       } catch (err) {
         console.error(err);
       }
@@ -536,18 +588,33 @@
       blockSlot.innerHTML = renderBlock(block);
       creditEl.innerHTML = renderCredit(block);
 
+      // Fill the channel cache once the image is out of the way, so it doesn't compete for bandwidth.
+      if (!blocks) {
+        const img = blockSlot.querySelector("img");
+        const warm = () => loadBlocks().catch((err) => console.error(err));
+        if (img && !img.complete) {
+          img.addEventListener("load", warm, { once: true });
+          img.addEventListener("error", warm, { once: true });
+          setTimeout(warm, 6000);
+        } else {
+          warm();
+        }
+      }
+
       if (!doAnimate) {
         creditEl.hidden = false;
         return;
       }
 
-      // Date first, then the block and its credit together.
+      // Date first, then the block, then the credit once the block has finished.
       await wait(Math.max(0, 400 - (performance.now() - started)));
       if (token !== renderToken) return;
       creditEl.hidden = false;
       fadeIn(blockSlot, 0.7);
-      fadeIn(creditEl, 0.7);
       hasPlayedArrival = true;
+      await wait(700);
+      if (token !== renderToken) return;
+      fadeIn(creditEl, 0.4);
     }
 
     /* ---------- midnight ---------- */
@@ -607,10 +674,10 @@
         const cached = JSON.parse(lsGet(CACHE_KEY));
         const pinned = lsGet(PIN_PREFIX + todayKey());
         const list = cached?.blocks;
-        if (!Array.isArray(list) || !list.length) return;
+        if (cached?.v !== 2 || !Array.isArray(list) || !list.length) return;
         const block = pinned
           ? list.find((b) => String(b.id) === pinned)
-          : list[dayIndex(todayKey()) % list.length];
+          : pickFrom(list, todayKey());
         const url = block && blockImageUrl(block);
         if (url) new Image().src = url;
       } catch { /* ignore */ }
