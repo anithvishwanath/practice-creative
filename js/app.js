@@ -480,7 +480,7 @@
           if (img.complete && img.naturalWidth) return Promise.resolve();
           return img.decode ? img.decode().catch(() => {}) : new Promise((r) => { img.onload = img.onerror = r; });
         })),
-        wait(4000),
+        wait(2000),
       ]);
     }
 
