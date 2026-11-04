@@ -186,6 +186,7 @@
       font-weight: 300;
       text-align: center;
       text-wrap: balance;
+      white-space: pre-line;
     }
 
     .block-text {
@@ -199,6 +200,7 @@
       text-wrap: pretty;
     }
 
+    .block-text p { white-space: pre-line; }
     .block-text p + p { margin-top: 1em; }
 
     .block-title {
@@ -333,6 +335,23 @@
 
     .archive-row:hover { background: var(--card); }
 
+    /* Older days sit further behind frosted glass; hover or focus brings a row into focus. */
+    .archive-text {
+      filter: blur(min(calc(1px + var(--i, 0) * .2px), 2.5px));
+      opacity: max(.55, calc(1 - var(--i, 0) * .04));
+      transition: filter .2s var(--ease), opacity .2s var(--ease);
+    }
+
+    .archive-row:hover .archive-text,
+    .archive-row:focus-visible .archive-text {
+      filter: none;
+      opacity: 1;
+    }
+
+    @media (hover: none) {
+      .archive-text { filter: none; opacity: 1; }
+    }
+
     .archive-date {
       font-family: var(--serif);
       font-size: 19px;
@@ -382,6 +401,132 @@
       font-size: 13px;
       color: var(--muted);
       text-align: center;
+    }
+
+    /* Sidebar: wide screens only, a quiet index of days (today first) */
+    .sidebar {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 40px;
+      top: clamp(112px, 18vh, 160px);
+      width: 180px;
+      max-height: calc(100vh - clamp(112px, 18vh, 160px) - 40px);
+      overflow-y: auto;
+      scrollbar-width: none;
+      font-family: var(--sans);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .sidebar::-webkit-scrollbar { display: none; }
+
+    .side-month {
+      padding: 14px 0 4px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    .side-month:first-child { padding-top: 0; }
+
+    /* Older month labels recede with the rows; the current month stays with today's row. */
+    .side-month { transition: opacity .5s var(--ease); }
+
+    .sidebar:not(:hover):not(:focus-within) .side-month:not(:first-child) {
+      opacity: .55;
+      transition-duration: 1s;
+    }
+
+    .side-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 3px 0;
+      color: var(--ink);
+      text-decoration: none;
+      filter: blur(min(calc(var(--i, 0) * .15px), 2px));
+      /* Timings follow errant.quest's nav: clears in 0.5s, recedes over 1s. */
+      transition: filter .5s var(--ease), opacity .5s var(--ease);
+    }
+
+    .sidebar:not(:hover):not(:focus-within) .side-row {
+      transition-duration: 1s;
+    }
+
+    /* At rest the whole index recedes; today and the day on screen stay put. */
+    .sidebar:not(:hover):not(:focus-within) .side-row:not(.is-today):not([aria-current="page"]) {
+      opacity: .55;
+    }
+
+    .side-preview {
+      position: fixed;
+      z-index: 3;
+      width: 176px;
+      padding: 10px;
+      background: var(--card);
+      box-shadow: var(--ring);
+      pointer-events: none;
+      font-family: var(--sans);
+    }
+
+    .side-preview:not([hidden]) { animation: preview-in .2s var(--ease) both; }
+    .side-preview[hidden] { display: none; }
+
+    @keyframes preview-in { from { opacity: 0; } to { opacity: 1; } }
+
+    .side-preview img {
+      display: block;
+      max-width: 100%;
+      max-height: 160px;
+      margin: 0 auto;
+      object-fit: contain;
+    }
+
+    .side-preview__text {
+      font-family: var(--serif);
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+
+    .side-preview__meta {
+      margin-top: 8px;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    .side-rule {
+      flex: 1;
+      min-width: 12px;
+      border-bottom: 1px solid var(--hair);
+      transform: translateY(-3px);
+    }
+
+    .side-type { color: var(--muted); }
+
+    .side-row:hover,
+    .side-row:focus-visible,
+    .side-row[aria-current="page"] {
+      filter: none;
+      opacity: 1;
+    }
+
+    @keyframes sidebar-in { from { opacity: 0; } to { opacity: 1; } }
+
+    @media (min-width: 1360px) {
+      .sidebar:not([hidden]) { display: block; animation: sidebar-in .6s var(--ease) .8s both; }
+      body:not([data-route="archive"]) .nav-link { display: none; }
+
+      /* The wordmark joins the sidebar: it stays put while the page scrolls. */
+      .topbar { position: fixed; pointer-events: none; }
+      .topbar a { pointer-events: auto; }
+    }
+
+    @media (hover: none) {
+      .side-row { filter: none; }
+      .sidebar .side-row,
+      .sidebar .side-month { opacity: 1 !important; }
+      .side-preview { display: none !important; }
     }
 
     /* Lightbox */
@@ -453,6 +598,6 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { transition: none !important; }
+      *, *::before, *::after { transition: none !important; animation: none !important; }
       .fade { opacity: 1; }
     }

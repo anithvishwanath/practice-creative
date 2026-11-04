@@ -27,6 +27,9 @@
     const creditEl = document.getElementById("credit");
     const noteEl = document.getElementById("note");
     const archiveEl = document.getElementById("archive");
+    const sidebarEl = document.getElementById("sidebar");
+    const previewEl = document.getElementById("side-preview");
+    let currentKey = null;
     const navLink = document.getElementById("nav-link");
     const imageLightbox = document.getElementById("image-lightbox");
     const imageLightboxImg = document.getElementById("image-lightbox-img");
@@ -309,7 +312,7 @@
       if (type === "Text" && text) {
         if (isQuote(text)) {
           const t = text.trim();
-          const quoted = /^["“]/.test(t) ? t : `“${t}”`;
+          const quoted = /^["“]/.test(t) ? t.replace(/^"/, "“").replace(/"$/, "”") : `“${t}”`;
           return `<blockquote class="block-quote">${escapeHtml(quoted)}</blockquote>`;
         }
         const paras = text.split(/\n\n+/).map((p) => `<p>${escapeHtml(p)}</p>`).join("");
@@ -384,6 +387,75 @@
         : `<div class="archive-thumb"></div>`;
     }
 
+    function renderSidebar() {
+      if (!blocks || !currentKey) return;
+      const today = parseKey(todayKey());
+      const monthFmt = new Intl.DateTimeFormat(undefined, { month: "long" });
+      const monthYearFmt = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" });
+      let html = "";
+      let lastMonth = null;
+      let i = 0;
+      for (let d = today; dateKey(d) >= START_DATE; d = addDays(d, -1), i++) {
+        const key = dateKey(d);
+        const block = blockFor(key);
+        if (!block) continue;
+        const monthId = `${d.getFullYear()}-${d.getMonth()}`;
+        if (monthId !== lastMonth) {
+          lastMonth = monthId;
+          const label = d.getFullYear() === today.getFullYear() ? monthFmt.format(d) : monthYearFmt.format(d);
+          html += `<div class="side-month">${escapeHtml(label)}</div>`;
+        }
+        const href = i === 0 ? "#/" : `#/${key}`;
+        const current = key === currentKey ? ' aria-current="page"' : "";
+        const label = `${dateFormat.format(d)} · ${blockAuthor(block)} · ${blockTypeLabel(block)}`;
+        html += `<a class="side-row${i === 0 ? " is-today" : ""}" href="${href}" data-key="${key}" aria-label="${escapeAttr(label)}" style="--i:${i}"${current}>
+          <span class="side-day">${d.getDate()}</span><span class="side-rule"></span><span class="side-type">${escapeHtml(blockTypeLabel(block))}</span>
+        </a>`;
+      }
+      sidebarEl.innerHTML = html;
+      sidebarEl.hidden = false;
+    }
+
+    function previewHtml(block) {
+      const thumb = block.image?.thumb?.url || blockImageUrl(block);
+      const meta = `<div class="side-preview__meta">${escapeHtml(blockAuthor(block))}</div>`;
+      if (block.class === "Text") {
+        const t = blockText(block).trim();
+        return `<div class="side-preview__text">${escapeHtml(t.length > 140 ? t.slice(0, 140).trimEnd() + "…" : t)}</div>${meta}`;
+      }
+      if (thumb) return `<img src="${escapeAttr(thumb)}" alt="" />${meta}`;
+      return `<div class="side-preview__text">${escapeHtml(blockTitle(block))}</div>${meta}`;
+    }
+
+    function showPreview(row) {
+      const block = blockFor(row.dataset.key);
+      if (!block) return;
+      previewEl.innerHTML = previewHtml(block);
+      previewEl.hidden = false;
+      const r = row.getBoundingClientRect();
+      const side = sidebarEl.getBoundingClientRect();
+      previewEl.style.left = `${side.right + 12}px`;
+      const h = previewEl.offsetHeight;
+      previewEl.style.top = `${Math.max(12, Math.min(r.top - 6, innerHeight - h - 12))}px`;
+    }
+
+    function hidePreview() {
+      previewEl.hidden = true;
+      previewEl.innerHTML = "";
+    }
+
+    sidebarEl.addEventListener("mouseover", (e) => {
+      const row = e.target.closest(".side-row");
+      if (row) showPreview(row); else hidePreview();
+    });
+    sidebarEl.addEventListener("mouseleave", hidePreview);
+    sidebarEl.addEventListener("focusin", (e) => {
+      const row = e.target.closest(".side-row");
+      if (row) showPreview(row);
+    });
+    sidebarEl.addEventListener("focusout", hidePreview);
+    sidebarEl.addEventListener("scroll", hidePreview);
+
     function renderArchive() {
       const today = parseKey(todayKey());
       const rows = [];
@@ -398,7 +470,7 @@
       const monthYearFmt = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" });
       let html = "";
       let lastMonth = null;
-      for (const d of rows) {
+      for (const [i, d] of rows.entries()) {
         const monthId = `${d.getFullYear()}-${d.getMonth()}`;
         if (monthId !== lastMonth) {
           lastMonth = monthId;
@@ -408,8 +480,8 @@
         const key = dateKey(d);
         const block = blockFor(key);
         if (!block) continue;
-        html += `<a class="archive-row" href="#/${key}">
-          <div>
+        html += `<a class="archive-row" href="#/${key}" style="--i:${i}">
+          <div class="archive-text">
             <div class="archive-date">${escapeHtml(dateFormat.format(d))}</div>
             <div class="archive-meta">${escapeHtml(blockAuthor(block))} · ${escapeHtml(blockTypeLabel(block))}</div>
           </div>
@@ -532,6 +604,8 @@
       const isToday = route.name === "today";
       const key = route.name === "day" ? route.key : todayKey();
       renderedDay = todayKey();
+      currentKey = route.name === "archive" ? null : key;
+      document.body.dataset.route = route.name;
 
       resetPage();
       window.scrollTo(0, 0);
@@ -539,6 +613,7 @@
       navLink.href = route.name === "archive" ? "#/" : "#/archive";
 
       if (route.name === "archive") {
+        sidebarEl.hidden = true;
         pageTitle.textContent = "Archive";
         document.title = "Archive · Practice / Creative";
         blockSlot.hidden = true;
@@ -551,7 +626,7 @@
       }
 
       pageTitle.textContent = dateFormat.format(parseKey(key));
-      document.title = "Practice / Creative";
+      document.title = `${pageTitle.textContent} · Practice / Creative`;
 
       const doAnimate = isToday && animate && !reducedMotion.matches;
       if (doAnimate) {
@@ -585,13 +660,14 @@
       }
 
       renderedBlockId = block.id;
+      renderSidebar();
       blockSlot.innerHTML = renderBlock(block);
       creditEl.innerHTML = renderCredit(block);
 
       // Fill the channel cache once the image is out of the way, so it doesn't compete for bandwidth.
       if (!blocks) {
         const img = blockSlot.querySelector("img");
-        const warm = () => loadBlocks().catch((err) => console.error(err));
+        const warm = () => loadBlocks().then(renderSidebar).catch((err) => console.error(err));
         if (img && !img.complete) {
           img.addEventListener("load", warm, { once: true });
           img.addEventListener("error", warm, { once: true });
@@ -670,7 +746,8 @@
 
     imageLightboxClose.addEventListener("click", closeImageLightbox);
     imageLightbox.addEventListener("click", (e) => {
-      if (e.target === imageLightbox) closeImageLightbox();
+      // Backdrop or image: anywhere outside the close button's own handler.
+      closeImageLightbox();
     });
     imageLightbox.addEventListener("cancel", (e) => {
       e.preventDefault();
