@@ -754,6 +754,13 @@
       closeImageLightbox();
     });
 
+    document.querySelector(".logo").addEventListener("click", (e) => {
+      // Already on today: the hash won't change, so just scroll back up.
+      if (parseRoute().name !== "today") return;
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: reducedMotion.matches ? "auto" : "smooth" });
+    });
+
     window.addEventListener("hashchange", () => render({ animate: false }));
 
     // Warm visit: start downloading today's image before the render pipeline runs.
