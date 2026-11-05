@@ -30,6 +30,7 @@
     const sidebarEl = document.getElementById("sidebar");
     const previewEl = document.getElementById("side-preview");
     let currentKey = null;
+    let pageReady = false;
     const navLink = document.getElementById("nav-link");
     const imageLightbox = document.getElementById("image-lightbox");
     const imageLightboxImg = document.getElementById("image-lightbox-img");
@@ -232,10 +233,21 @@
     async function fetchChannelBlocks() {
       const pageUrl = (page) =>
         `${API_BASE}/channels/${CONFIG.slug}/contents?per=${CONFIG.per}&page=${page}&sort=position&direction=asc`;
+      // Parallel requests can trip Are.na's rate limit (the error reply has no CORS
+      // headers, so it surfaces as a network failure); retry each page with a short backoff.
       const fetchPage = async (page) => {
-        const res = await fetch(pageUrl(page));
-        if (!res.ok) throw new Error(`Are.na API returned ${res.status}`);
-        return (await res.json()).contents || [];
+        let lastErr;
+        for (let attempt = 0; attempt < 4; attempt++) {
+          try {
+            const res = await fetch(pageUrl(page));
+            if (!res.ok) throw new Error(`Are.na API returned ${res.status}`);
+            return (await res.json()).contents || [];
+          } catch (err) {
+            lastErr = err;
+            await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+          }
+        }
+        throw lastErr;
       };
 
       // Page 1 and the channel length in parallel, then every other page at once.
@@ -387,8 +399,11 @@
         : `<div class="archive-thumb"></div>`;
     }
 
-    function renderSidebar() {
+    // The sidebar is static chrome, present with the wordmark. Only when its data arrives
+    // late (first visit, nothing cached) does it fade in, briefly.
+    function renderSidebar({ late = false } = {}) {
       if (!blocks || !currentKey) return;
+      const firstShow = sidebarEl.hidden;
       const today = parseKey(todayKey());
       const monthFmt = new Intl.DateTimeFormat(undefined, { month: "long" });
       const monthYearFmt = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" });
@@ -414,6 +429,11 @@
       }
       sidebarEl.innerHTML = html;
       sidebarEl.hidden = false;
+      if (late && firstShow && !reducedMotion.matches) {
+        sidebarEl.classList.remove("is-in");
+        sidebarEl.classList.add("fade");
+        fadeIn(sidebarEl, 0.3);
+      }
     }
 
     function previewHtml(block) {
@@ -427,9 +447,9 @@
       return `<div class="side-preview__text">${escapeHtml(blockTitle(block))}</div>${meta}`;
     }
 
-    function showPreview(row) {
-      const block = blockFor(row.dataset.key);
-      if (!block) return;
+    let previewToken = 0;
+
+    function placePreview(row, block) {
       previewEl.innerHTML = previewHtml(block);
       previewEl.hidden = false;
       const r = row.getBoundingClientRect();
@@ -439,7 +459,21 @@
       previewEl.style.top = `${Math.max(12, Math.min(r.top - 6, innerHeight - h - 12))}px`;
     }
 
+    function showPreview(row) {
+      // Nothing to preview until the page has arrived, and never an empty image box.
+      if (!pageReady) return;
+      const block = blockFor(row.dataset.key);
+      if (!block) return;
+      const token = ++previewToken;
+      const thumb = block.class !== "Text" && (block.image?.thumb?.url || blockImageUrl(block));
+      if (!thumb) return placePreview(row, block);
+      const loader = new Image();
+      loader.onload = () => { if (token === previewToken) placePreview(row, block); };
+      loader.src = thumb;
+    }
+
     function hidePreview() {
+      previewToken++;
       previewEl.hidden = true;
       previewEl.innerHTML = "";
     }
@@ -538,11 +572,38 @@
       return new Promise((r) => setTimeout(r, ms));
     }
 
-    function fadeIn(el, seconds) {
+    // Put an element in its hidden start state instantly and commit it, so the later
+    // fadeIn() has something real to transition from (reused elements keep their old style otherwise).
+    function hideForFade(el, blur) {
+      if (blur) el.style.setProperty("--blur", `${blur}px`);
+      el.style.transition = "none";
+      el.classList.remove("is-in");
+      el.classList.add("fade");
+      void el.offsetWidth;
+      el.style.transition = "";
+    }
+
+    function fadeIn(el, seconds, blur) {
       el.style.setProperty("--dur", `${seconds}s`);
+      if (blur) el.style.setProperty("--blur", `${blur}px`);
       // Force the starting opacity to be committed before toggling.
       void el.offsetWidth;
       el.classList.add("is-in");
+    }
+
+    // Images fade in when they actually arrive, so a slow download still shows a fade
+    // (the block's own fade may be long over by then).
+    function revealImages(root, seconds) {
+      root.style.setProperty("--img-dur", `${seconds}s`);
+      for (const img of root.querySelectorAll("img")) {
+        const show = () => img.classList.add("is-loaded");
+        if (img.complete && img.naturalWidth) {
+          requestAnimationFrame(() => requestAnimationFrame(show));
+        } else {
+          img.addEventListener("load", show, { once: true });
+          img.addEventListener("error", show, { once: true });
+        }
+      }
     }
 
     function resetPage() {
@@ -558,6 +619,7 @@
       pageTitle.classList.remove("fade", "is-in");
       blockSlot.classList.remove("fade", "is-in");
       creditEl.classList.remove("fade", "is-in");
+      for (const el of [pageTitle, blockSlot, creditEl]) el.style.removeProperty("--blur");
     }
 
     function showError() {
@@ -605,6 +667,8 @@
       const key = route.name === "day" ? route.key : todayKey();
       renderedDay = todayKey();
       currentKey = route.name === "archive" ? null : key;
+      pageReady = false;
+      hidePreview();
       document.body.dataset.route = route.name;
 
       resetPage();
@@ -625,16 +689,23 @@
         return;
       }
 
-      pageTitle.textContent = dateFormat.format(parseKey(key));
-      document.title = `${pageTitle.textContent} · Practice / Creative`;
+      const keyDate = parseKey(key);
+      pageTitle.innerHTML = `<span class="date-day">${escapeHtml(weekdayFormat.format(keyDate))}<span class="sr-only">,</span></span> <span class="date-main">${escapeHtml(dayMonthFormat.format(keyDate))}</span>`;
+      document.title = `${dateFormat.format(keyDate)} · Practice / Creative`;
 
       const doAnimate = isToday && animate && !reducedMotion.matches;
       if (doAnimate) {
-        pageTitle.classList.add("fade");
-        blockSlot.classList.add("fade");
-        creditEl.classList.add("fade");
-        fadeIn(pageTitle, 0.4);
+        for (const el of [pageTitle, blockSlot, creditEl]) hideForFade(el);
+        fadeIn(pageTitle, 1.0);
       }
+      // Any other day (or returning to today) resolves from blur too, but briefly.
+      const quick = !doAnimate && !reducedMotion.matches;
+      if (quick) {
+        hideForFade(pageTitle, 6);
+        hideForFade(blockSlot, 8);
+        hideForFade(creditEl, 4);
+      }
+      sidebarEl.classList.remove("fade", "is-in");
       const started = performance.now();
 
       let block = null;
@@ -655,6 +726,7 @@
       if (token !== renderToken) return;
 
       if (!block) {
+        pageTitle.classList.add("is-in");
         showError();
         return;
       }
@@ -662,12 +734,16 @@
       renderedBlockId = block.id;
       renderSidebar();
       blockSlot.innerHTML = renderBlock(block);
+      revealImages(blockSlot, doAnimate ? 1.3 : 0.7);
       creditEl.innerHTML = renderCredit(block);
 
       // Fill the channel cache once the image is out of the way, so it doesn't compete for bandwidth.
       if (!blocks) {
         const img = blockSlot.querySelector("img");
-        const warm = () => loadBlocks().then(renderSidebar).catch((err) => console.error(err));
+        const warm = () => loadBlocks().then(() => renderSidebar({ late: true })).catch((err) => {
+          console.error(err);
+          setTimeout(() => loadBlocks().then(() => renderSidebar({ late: true })).catch(() => {}), 5000);
+        });
         if (img && !img.complete) {
           img.addEventListener("load", warm, { once: true });
           img.addEventListener("error", warm, { once: true });
@@ -688,21 +764,30 @@
       });
 
       if (!doAnimate) {
-        await imageReady;
+        if (quick) {
+          fadeIn(pageTitle, 0.6, 6);
+          fadeIn(blockSlot, 0.7, 8);
+        }
+        await Promise.all([imageReady, wait(quick ? 350 : 0)]);
         if (token !== renderToken) return;
         creditEl.hidden = false;
+        if (quick) fadeIn(creditEl, 0.4, 4);
+        pageReady = true;
         return;
       }
 
-      // Date first, then the block, then the credit once the block has finished.
-      await wait(Math.max(0, 400 - (performance.now() - started)));
+      // Date, then the block; the credit follows as it settles. The sidebar is static.
+      await wait(Math.max(0, 900 - (performance.now() - started)));
       if (token !== renderToken) return;
-      fadeIn(blockSlot, 0.7);
+      fadeIn(blockSlot, 1.6);
       hasPlayedArrival = true;
-      await Promise.all([wait(700), imageReady]);
+      await Promise.all([wait(1100), imageReady]);
       if (token !== renderToken) return;
       creditEl.hidden = false;
-      fadeIn(creditEl, 0.4);
+      fadeIn(creditEl, 0.9);
+      await wait(900);
+      if (token !== renderToken) return;
+      pageReady = true;
     }
 
     /* ---------- midnight ---------- */
